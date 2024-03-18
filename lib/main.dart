@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -79,6 +80,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    int _selectedIndex = 0;
     return Scaffold(
       appBar: AppBar(
         toolbarHeight:
@@ -174,32 +176,96 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite_border),
+            label: 'Saved',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.amber[800],
+        onTap: (index) => setState(() => _selectedIndex = index),
+      ),
     );
   }
 }
 
-class ArticleDetailPage extends StatelessWidget {
+class ArticleDetailPage extends StatefulWidget {
   final Article article;
 
   const ArticleDetailPage({Key? key, required this.article}) : super(key: key);
 
   @override
+  _ArticleDetailPageState createState() => _ArticleDetailPageState();
+}
+
+class _ArticleDetailPageState extends State<ArticleDetailPage> {
+  bool isSaved = false;
+
+  @override
+  void initState() {
+    super.initState();
+    checkSavedStatus();
+  }
+
+  Future<void> checkSavedStatus() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isSaved = prefs.getBool(widget.article.url) ?? false;
+    });
+  }
+
+  Future<void> toggleSavedStatus() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final bool saved = prefs.getBool(widget.article.url) ?? false;
+    setState(() {
+      isSaved = !saved;
+    });
+    await prefs.setBool(widget.article.url, isSaved);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Detail'),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Container(
+                alignment: Alignment.center,
+                child: Text(
+                  'Detail',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            IconButton(
+              icon: Icon(
+                isSaved ? Icons.favorite : Icons.favorite_border,
+                color: isSaved ? Colors.red : null,
+              ),
+              onPressed: toggleSavedStatus,
+            ),
+          ],
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            article.imageUrl.isNotEmpty
-                ? Image.network(article.imageUrl)
+            widget.article.imageUrl.isNotEmpty
+                ? Image.network(widget.article.imageUrl)
                 : Icon(Icons.image),
             SizedBox(height: 16),
             Text(
-              article.title,
+              widget.article.title,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
@@ -207,19 +273,19 @@ class ArticleDetailPage extends StatelessWidget {
             ),
             SizedBox(height: 8),
             Text(
-              'Author: ${article.author}',
+              'Author: ${widget.article.author}',
               style: TextStyle(
                 fontStyle: FontStyle.italic,
               ),
             ),
             SizedBox(height: 8),
             Text(
-              article.content, // Hiển thị mô tả
+              widget.article.content,
               style: TextStyle(fontSize: 16),
             ),
             SizedBox(height: 8),
             Text(
-              'URL: ${article.url}',
+              'URL: ${widget.article.url}',
               style: TextStyle(
                 color: Colors.blue,
                 decoration: TextDecoration.underline,
